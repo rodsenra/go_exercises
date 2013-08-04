@@ -1,0 +1,48 @@
+Crie um buscador de artigos por palavra. O programa recebe uma lista de
+arquivos e abre um shell interativo, onde é possível buscar por palavras
+nesses artigos. Ao digitar uma palavra, o usuário receberá a lista de artigos
+que contém aquela palavra.
+
+Código do main:
+
+```
+func main() {
+    store, err := search.NewIndex(os.Args[1:]...)
+    if err != nil {
+        log.Fatal(err)
+    }
+    scanner := bufio.NewScanner(os.Stdin)
+    scanner.Split(bufio.ScanLines)
+    fmt.Print("> ")
+    for scanner.Scan() {
+        articles, err := store.Search(scanner.Text())
+        if err != nil {
+            fmt.Println(err)
+        } else {
+            fmt.Printf("%s.\n", strings.Join(articles, ", "))
+        }
+        fmt.Print("> ")
+    }
+    fmt.Println()
+}
+```
+
+Exemplo de uso:
+
+```
+% ./article-search articles/*
+> java
+No articles found.
+> c++
+articles/cguide_3.txt, articles/pcgpe10.txt.
+> cpu
+articles/optimize.txt, articles/pcgpe10.txt, articles/tpudoc1.txt.
+> unix
+articles/archives.txt, articles/bourne1.txt.
+> ^D
+%
+```
+**Desafio:**  implemente  os  operadores   ``&``  e  ``|``.  Estes  operadores
+significam and e  or, respectivamente. Buscas por "cpu &  memory" devem trazer
+todos documentos que têm ambas as palavras, enquanto buscas por "cpu | memory"
+devem   trazer   todos  os   artigos   que   têm   uma  das   duas   palavras.
