@@ -85,9 +85,17 @@ func linkParser(page_chan chan string) <-chan string {
 	return link_chan
 }
 
-func downloader(link_chan <-chan string, done chan bool) {
+//func fetchAndSave(url string, dst_folder string) {
+//	done_fetching := make(chan bool)
+//	content_chan := fetcher(url, done_fetching)
+//}
+
+func downloader(config configuration_type, link_chan <-chan string, done chan bool) {
 	go func() {
 		for link := range link_chan {
+			if !strings.HasPrefix(link, "http") {
+				link = config.target_url + link
+			}
 			fmt.Printf("Fetching: %v\n", link)
 		}
 		done <- true
@@ -117,12 +125,15 @@ func main() {
 	page_chan := fetcher(config.target_url, finish_fetcher)
 	link_chan := linkParser(page_chan)
 
-	done_downloaders := make(chan bool)
+	done_downloaders_signal := make(chan bool)
 	for i := 0; i < config.workers; i++ {
-		downloader(link_chan, done_downloaders)
+		downloader(
+			config,
+			link_chan,
+			done_downloaders_signal)
 	}
 	<-finish_fetcher
 	// All fetchers terminated, notify parser to finish
 	close(page_chan)
-	waitAll(done_downloaders, config.workers)
+	waitAll(done_downloaders_signal, config.workers)
 }
