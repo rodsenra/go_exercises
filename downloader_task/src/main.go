@@ -38,6 +38,7 @@ func loadConfig() configuration_type {
 func fetcher(url string) chan string {
 	page_chan := make(chan string)
 	go func() {
+		fmt.Printf("\nFetching: %v", url)
 		resp, err := http.Get(url)
 		if err != nil {
 			fmt.Printf("Failed to retrieve %v with error %v\n", url, err)
@@ -48,7 +49,7 @@ func fetcher(url string) chan string {
 			fmt.Printf("Failed to read the body of %v with error %v\n", url, err)
 		}
 		page_chan <- string(body)
-		fmt.Println("Fetcher is done")
+		fmt.Printf("\nDone fetching %v", url)
 		close(page_chan)
 	}()
 	return page_chan
@@ -85,10 +86,20 @@ func linkParser(page_chan chan string) <-chan string {
 	return link_chan
 }
 
-//func fetchAndSave(url string, dst_folder string) {
-//	done_fetching := make(chan bool)
-//	content_chan := fetcher(url, done_fetching)
-//}
+func fetchAndSave(config configuration_type, url string) {
+	data_chan := fetcher(url)
+	for data := range data_chan {
+		//filename := strings.TrimPrefix(url, config.target_url)
+		segments := strings.Split(url, "/")
+		filename := segments[len(segments)-1]
+		filepath := config.download_folder + "/" + filename
+		data_bytes := []byte(data)
+		err := ioutil.WriteFile(filepath, data_bytes, 0660)
+		if err != nil {
+			panic(err)
+		}
+	}
+}
 
 func downloader(config configuration_type, link_chan <-chan string, done chan bool) {
 	go func() {
@@ -96,7 +107,7 @@ func downloader(config configuration_type, link_chan <-chan string, done chan bo
 			if !strings.HasPrefix(link, "http") {
 				link = config.target_url + link
 			}
-			fmt.Printf("Fetching: %v\n", link)
+			fetchAndSave(config, link)
 		}
 		done <- true
 	}()
