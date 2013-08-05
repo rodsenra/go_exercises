@@ -35,7 +35,7 @@ func loadConfig() configuration_type {
 	return config
 }
 
-func fetcher(url string, finish chan<- bool) chan string {
+func fetcher(url string) chan string {
 	page_chan := make(chan string)
 	go func() {
 		resp, err := http.Get(url)
@@ -49,7 +49,7 @@ func fetcher(url string, finish chan<- bool) chan string {
 		}
 		page_chan <- string(body)
 		fmt.Println("Fetcher is done")
-		finish <- true
+		close(page_chan)
 	}()
 	return page_chan
 }
@@ -121,8 +121,7 @@ func main() {
 		config.download_folder,
 		config.workers)
 
-	finish_fetcher := make(chan bool)
-	page_chan := fetcher(config.target_url, finish_fetcher)
+	page_chan := fetcher(config.target_url)
 	link_chan := linkParser(page_chan)
 
 	done_downloaders_signal := make(chan bool)
@@ -132,8 +131,6 @@ func main() {
 			link_chan,
 			done_downloaders_signal)
 	}
-	<-finish_fetcher
-	// All fetchers terminated, notify parser to finish
-	close(page_chan)
+
 	waitAll(done_downloaders_signal, config.workers)
 }
