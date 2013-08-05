@@ -85,15 +85,25 @@ func linkParser(page_chan chan string) <-chan string {
 	return link_chan
 }
 
-func downloader(link_chan <-chan string) chan bool {
-	done := make(chan bool)
+func downloader(link_chan <-chan string, done chan bool) {
 	go func() {
 		for link := range link_chan {
-			fmt.Printf("%v", link)
+			fmt.Printf("Fetching: %v\n", link)
 		}
 		done <- true
 	}()
-	return done
+}
+
+func waitAll(done_chan chan bool, worker_count int) {
+	waiting := worker_count
+	for done := range done_chan {
+		if done {
+			waiting -= 1
+		}
+		if waiting == 0 {
+			break
+		}
+	}
 }
 
 func main() {
@@ -106,9 +116,13 @@ func main() {
 	finish_fetcher := make(chan bool)
 	page_chan := fetcher(config.target_url, finish_fetcher)
 	link_chan := linkParser(page_chan)
-	done_downloader := downloader(link_chan)
+
+	done_downloaders := make(chan bool)
+	for i := 0; i < config.workers; i++ {
+		downloader(link_chan, done_downloaders)
+	}
 	<-finish_fetcher
 	// All fetchers terminated, notify parser to finish
 	close(page_chan)
-	<-done_downloader
+	waitAll(done_downloaders, config.workers)
 }
